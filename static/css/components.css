@@ -1,0 +1,399 @@
+/* Auto Annotator v1.1 - Composants UI */
+
+/* Boutons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Variantes de boutons */
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn-success {
+  background: var(--success);
+  border-color: var(--success);
+  color: white;
+}
+
+.btn-warning {
+  background: var(--warning);
+  border-color: var(--warning);
+  color: white;
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.btn-ghost:hover {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+
+/* Tailles de boutons */
+.btn-sm {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.75rem;
+}
+
+.btn-lg {
+  padding: var(--space) var(--space-lg);
+  font-size: 1rem;
+}
+
+/* Cards et panels */
+.card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.card-header {
+  padding: var(--space) var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.card-content {
+  padding: var(--space-lg);
+}
+
+.card-footer {
+  padding: var(--space) var(--space-lg);
+  border-top: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Navigation et contrôles */
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space);
+  padding: var(--space) var(--space-lg);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-counter {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0 var(--space);
+}
+
+/* Liste de documents */
+.doc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.doc-item {
+  padding: var(--space);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.doc-item:hover {
+  background: var(--accent-light);
+}
+
+.doc-item.active {
+  background: var(--accent-light);
+  border-left: 3px solid var(--accent);
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(96, 165, 250, 0.15);
+}
+
+.doc-item:last-child {
+  border-bottom: none;
+}
+
+.doc-id {
+  font-weight: 600;
+  color: var(--accent);
+  font-size: 0.75rem;
+  min-width: 2rem;
+}
+
+.doc-preview {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Zone de texte annotée */
+.text-viewer {
+  padding: var(--space-xl);
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  margin: var(--space-lg);
+  font-size: 1rem;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Marqueurs et annotations */
+.cue {
+  background: var(--accent-light);
+  color: red; /* Changed from var(--accent) */
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  cursor: pointer;
+  position: relative;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.cue:hover {
+  background: rgba(96, 165, 250, 0.2);
+  border-color: var(--accent);
+  transform: scale(1.02);
+}
+
+.scope {
+  background: var(--success-light);
+  color: var(--success);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  cursor: pointer;
+  position: relative;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.scope:hover {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: var(--success);
+  transform: scale(1.02);
+}
+
+/* Tooltips pour marqueurs - masqués par défaut */
+.marker-tooltip {
+  position: absolute !important;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: var(--space-sm) var(--space);
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  z-index: 10;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 200px;
+  text-align: center;
+  display: none; /* Force hiding by default */
+}
+
+.cue:hover .marker-tooltip,
+.scope:hover .marker-tooltip {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+}
+
+/* Listes d'annotations */
+.annotation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.annotation-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space);
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.2s ease;
+}
+
+.annotation-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.annotation-item:last-child {
+  border-bottom: none;
+}
+
+.annotation-content {
+  flex: 1;
+}
+
+.annotation-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.annotation-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.annotation-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+/* Formulaires */
+.form-group {
+  margin-bottom: var(--space);
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--space-sm) var(--space);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.form-input[type="number"] {
+  max-width: 100px;
+}
+
+/* Contrôles de portée */
+.scope-controls {
+  display: flex;
+  gap: var(--space);
+  align-items: end;
+  padding: var(--space);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius);
+  margin-top: var(--space);
+}
+
+/* Statistiques */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space);
+  margin: var(--space) 0;
+}
+
+.stat-item {
+  text-align: center;
+  padding: var(--space);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius);
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: var(--space-xs);
+}
+
+/* Messages d'état */
+.alert {
+  padding: var(--space);
+  border-radius: var(--radius);
+  border: 1px solid;
+  margin: var(--space) 0;
+}
+
+.alert-success {
+  background: var(--success-light);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.alert-warning {
+  background: var(--warning-light);
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.alert-error {
+  background: var(--error-light);
+  border-color: var(--error);
+  color: var(--error);
+}

@@ -1,0 +1,140 @@
+  # ----------------------------------------------------------
+  # 1) CORE — portée(s) SMART pour tout bipartite
+  # ----------------------------------------------------------
+- id: BIP_G_CORE
+  when_group: "bipartite"
+  scope_strategy: "SUBJECT_VERB_OBJECT"
+  options:
+    include_subject: true
+    include_object: true
+    include_predicative_attribute: true      # 🔥 nouveau → attr. du sujet (verbe "être")
+    include_passive_participle: true         # 🔥 nouveau → voix passive complète
+    exclude_adjuncts: true
+    max_token_gap: 12                        # un peu plus permissif
+    stop_punct: [".",";",":"]
+  notes: >
+    Règle de portée principale pour les négations bipartites ("ne … pas / plus / jamais / rien / personne").
+    - Inclure systématiquement le sujet explicite + le prédicat ou l’entité niée.
+    - Conserver les compléments essentiels (objets, GN introduits par "de").
+    - Exclure les compléments circonstanciels (temps, lieu, cause).
+    - Exclure les cas de restriction "ne … que" (filtrés par une autre règle).
+    - Si le sujet est un pronom négatif ("rien", "personne"), inclure le prédicat complet.
+      - Inclure systématiquement le sujet explicite.
+    - Si le verbe est copule ("être"), inclure l’attribut (adj/nom).
+    - Si la construction est passive, inclure le groupe verbal complet (auxiliaires + participe).
+    - Conserver les COD/COI/compléments essentiels.
+    - Exclure les circonstanciels (temps, lieu, cause).
+  examples:
+    - "Les patients n’ont pas présenté de complication. → patients, complication"
+    - "L’IRM n’a pas montré de récidive. → IRM, récidive"
+    - "Le résultat n’est pas concluant. → résultat, concluant"
+    - "Rien n’a été observé. → (scope complet) rien, a été observé"
+    - "L’examen n’a pas révélé d’anomalie. → examen, anomalie"
+    - "Le traitement n’a pas amélioré l’état du patient. → traitement, état du patient"
+    - "L’échographie n’a pas détecté de fracture. → échographie, fracture"
+    - "Le patient n’a pas terminé son traitement. → patient, traitement"
+  # ----------------------------------------------------------
+  # 1.b) Résolution de cooccurrence avec le groupe 'determinant'
+  #   - Si 'ne …' et un déterminant négatif visent la MÊME entité → 1 seul scope partagé
+  #   - Sinon (cibles distinctes) → scopes séparés (on ne fusionne pas)
+  # ----------------------------------------------------------
+- id: BIP_G_COOC_DET_RESOLVE
+  when_group: "bipartite"
+  scope_strategy: "RESOLVE_COOCURRENCE"
+  options:
+    with_group: "determinant"
+    same_clause_max_tokens: 40
+    merge_if_same_target: true
+    merge_strategy: "UNION_ON_SAME_NP_HEAD"   # même tête nominale → fusion
+    keep_distinct_if_frames_differ: true      # ex. copule vs déterminant → ne pas fusionner
+  notes: >
+    Résolution des cooccurrences bipartite + déterminant :
+    - Si les deux visent la même entité → un seul scope fusionné.
+    - Si ce sont des cibles distinctes → scopes séparés.
+  examples:
+    - "Aucune récidive n’a été constatée. → scope: récidive"     # fusion (même tête nominale)
+    - "Aucun événement indésirable n’est attendu. → scope: événement indésirable, attendu"  # distincts
+# ----------------------------------------------------------
+# 2) SUPPORT_AUTO — gouverneurs 0..N (patient/examen/doc/agent), gauche & droite
+#   - reprend le canevas locutions/determinant, avec prépositions droites data-driven
+# ----------------------------------------------------------
+- id: BIP_G_SUPPORT_AUTO
+  when_group: "bipartite"
+  scope_strategy: "GOVERNOR_SUPPORT_AUTO"
+  options:
+    # Fenêtres
+    left_window_tokens: 12
+    right_window_tokens: 14
+
+    # Prépositions droites (data-driven, multi-catégories — réutilise tes listes externes)
+    right_support_preps:
+      agency_external:      "RIGHT_SUPPORT_PREPS_AGENCY"
+      normative_external:   "RIGHT_SUPPORT_PREPS_NORMATIVE"
+      reference_external:   "RIGHT_SUPPORT_PREPS_REFERENCE"
+
+    # Sélection candidats
+    allowed_pos: ["NOUN","PROPN"]
+    prefer_dep_path: true
+    allowed_governor_rels: ["nsubj","nsubj:pass","obl","obl:agent","nmod","appos","conj","parataxis","compound"]
+    ban_dep_labels: ["expl"]
+    stopwords_governors: ["il","elle","cela","ceci","on","nous","vous","ils","elles","y","l’","l'"]
+
+    # Titres/documents à gauche
+    consider_section_titles: true
+    title_left_window_tokens: 20
+    title_trigger_regex: ":[\\s\\-–—]*$"
+    title_attach_policy: "closest_left_title"
+
+    prefer_support_types: ["SUJET_PATIENT","EXAMEN_PROCEDURE","DOCUMENT_SOURCE","ORGANE_SIEGE","INSTITUTION_NORME"]
+
+    # Rattachement & multi
+    tie_to_core_scope: true
+    attach_to_all_scopes: true
+    multi_support: true
+    max_support: 3
+    coalesce_duplicates: true
+    output_role: "support"
+
+  guards:
+    deny_if_group_present:
+      group: "preposition"
+      labels: ["sans"]
+      window_tokens: 8
+      precedence: "higher"
+  notes: >
+      Attache le sujet patient, l’examen, le document/source, ou un agent normatif/référence,
+      sans affecter la polarité (role='support').
+  examples:
+      - "Personne ne tousse. → scope: personne, tousse"
+      - "L’IRM ne montre pas de récidive. → scope: IRM, récidive"
+      - "La patiente n’a pas présenté de complication. → scope: patiente, complication"
+      - "Le patient ne parvient pas à avaler de liquide. → scope: patient, avaler, liquide"
+      - "Absence de validation conformément au protocole interne. → scope: protocole interne, validation"
+      - "Absence de données en accord avec la littérature. → scope: littérature, données"
+
+
+  # ----------------------------------------------------------
+  # 0) Garde "ne … que" (sécurité si le marker n’a pas déjà SKIP)
+  # ----------------------------------------------------------
+- id: BIP_G_SKIP_NE_QUE
+  when_group: "bipartite"
+  scope_strategy: "SKIP_IF_PATTERN"
+  priority: "very_high"
+  options:
+    pattern: "\\b(n['’]?|ne)\\b\\s+\\bque\\b"   # simplifié
+    regex: true
+    case_insensitive: true
+    max_token_gap: 8
+    stop_punct: [".",";",":"]
+    fallback_char_gap: 40   # utilisé seulement si la segmentation en tokens échoue
+    exclude_verbs_from_scope : true
+  notes: >
+    "ne … que" exprime une restriction (≈ seulement), pas une négation.
+    Priorité au gap en tokens (max_token_gap: 8).
+    Le fallback caractères (40) n’est utilisé qu’en cas de segmentation défaillante.
+  examples:
+    - "Il ne mange que des légumes. → (skip, restriction)"
+    - "Elle n’a que deux enfants. → (skip, restriction)"
+    - "Le patient ne présente que des symptômes mineurs. → (skip, restriction)"
+    - "On n’observe que de rares anomalies. → (skip, restriction)"
+    - "Il n’y a eu que des cas isolés. → (skip, restriction)"

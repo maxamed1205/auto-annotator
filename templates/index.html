@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Auto Annotator v1.1 - Négation & Portée</title>
+  
+  <!-- Styles modulaires -->
+  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="stylesheet" href="/static/css/animations.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/Simed.png">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header avec logo et titre -->
+    <header class="header">
+      <div class="header-content">
+        <img src="/Simed.png" alt="Simed Logo" class="logo">
+        <h1 class="header-title">Auto Annotator</h1>
+        <div class="header-subtitle">v1.1 — Négation & Portée</div>
+      </div>
+    </header>
+
+    <!-- Layout principal -->
+    <main class="main-layout">
+      <!-- Sidebar avec navigation et statistiques -->
+      <aside class="sidebar animate-slide-in">
+        <div class="sidebar-section">
+          <h2 class="sidebar-title">
+            📄 Documents
+          </h2>
+          <ul id="doc-list" class="doc-list"></ul>
+        </div>
+
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">
+            📊 Statistiques
+          </h3>
+          <div id="stats-container" class="stats-grid"></div>
+        </div>
+
+        <div class="sidebar-section">
+          <button id="save-batch" class="btn btn-primary btn-lg hover-lift">
+            💾 Sauvegarder tout
+          </button>
+        </div>
+      </aside>
+
+      <!-- Contenu principal -->
+      <section class="content animate-fade-in">
+        <!-- Contrôles de navigation -->
+        <div class="nav-controls">
+          <button id="prev-doc" class="btn btn-ghost">
+            ◀ Précédent
+          </button>
+          <span id="doc-counter" class="nav-counter">-</span>
+          <button id="next-doc" class="btn btn-ghost">
+            Suivant ▶
+          </button>
+          
+          <div style="margin-left: auto; display: flex; gap: 1rem;">
+            <button id="save-current" class="btn btn-success">
+              ✓ Valider
+            </button>
+            <button id="reset-current" class="btn btn-warning">
+              ↺ Reset
+            </button>
+          </div>
+        </div>
+
+        <!-- Visualiseur de texte avec annotations -->
+        <div id="text-viewer" class="text-viewer"></div>
+
+        <!-- Panels d'édition -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; padding: 1.5rem;">
+          <!-- Panel des marqueurs (cues) -->
+          <div class="card panel-slide">
+            <div class="card-header">
+              <h3 class="card-title">🎯 Marqueurs de négation</h3>
+            </div>
+            <div class="card-content">
+              <ul id="cues-list" class="annotation-list"></ul>
+            </div>
+          </div>
+
+          <!-- Panel des portées (scopes) -->
+          <div class="card panel-slide">
+            <div class="card-header">
+              <h3 class="card-title">🎯 Portées</h3>
+            </div>
+            <div class="card-content">
+              <ul id="scopes-list" class="annotation-list"></ul>
+              
+              <!-- Contrôles d'ajout de portée -->
+              <div class="scope-controls">
+                <div class="form-group">
+                  <label class="form-label">Début</label>
+                  <input id="scope-start" type="number" min="0" class="form-input focus-ring" placeholder="0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Fin</label>
+                  <input id="scope-end" type="number" min="0" class="form-input focus-ring" placeholder="0">
+                </div>
+                <button id="add-scope" class="btn btn-primary hover-lift">
+                  ➕ Ajouter
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Message de feedback -->
+  <div id="feedback" class="alert" style="position: fixed; top: 100px; right: 20px; display: none; z-index: 1000;"></div>
+
+  <!-- Scripts modulaires -->
+  <script src="/static/js/ui.js"></script>
+  <script src="/static/js/annotations.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

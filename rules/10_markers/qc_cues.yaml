@@ -1,0 +1,89 @@
+# ——————————————————————————————————————————————————————————————
+# QC/Quality control patterns for negation detection
+# ——————————————————————————————————————————————————————————————
+
+# A) Contrôle qualité : Vérification universelle (aucun verbe dans le cue)
+# ——————————————————————————————————————————————————————————————
+- id: QC_NO_VERB_IN_CUE
+  when_pattern: ".*"
+  action: "VALIDATE_CUE_NO_VERB_INCLUDED"
+  options:
+    regex: true
+    global: true
+    exclude_verbs_from_cue: true
+  notes: >
+    Règle de contrôle qualité : Assurer qu'aucun verbe n'est inclus dans les marqueurs (cue_label).
+    Spécialement pour les bipartites : "n'est pas" → "ne pas", "n'ont pas" → "n' pas".
+    Cette validation s'applique universellement sur tout cue détecté.
+  examples:
+    - "Les patients n'ont pas présenté… → cue: 'n' pas' (verbe 'ont' exclu)"
+    - "L'examen n'est pas conclusif. → cue: 'ne pas' (verbe 'est' exclu)"
+
+# B) Coexistence déterminant + particule bipartite (aucun … ne)
+- id: QC_DET_COEX_BIPARTITE
+  when_pattern: >
+    \b(aucun|aucune|pas\s+de?).*?\b(n['']?|ne)\b
+  group: "determinant"
+  cue_label: ["{match}"]
+  options:
+    regex: true
+    case_insensitive: true
+    global: true
+    max_token_gap: 10
+    exclude_verbs_from_cue: true
+  notes: >
+    Quand "aucun"/"aucune"/"pas de" coexiste avec "ne", on génère des cues distincts.
+    Ex. "Aucune récidive n'a été constatée" → cues: "aucune", "ne".
+  examples:
+    - "Il n'y a aucun doute sur ce diagnostic. → aucun"
+    - "Rapport sans aucun commentaire. → aucun"
+
+# A) 'plus' n'est négatif que si 'ne' est dans la même proposition
+- id: BIP_PLUS_ONLY_WITH_NE
+  when_pattern: '\bplus\b'
+  group: "bipartite"
+  cue_label: ["{match}"]
+  notes: >
+    'plus' n'est un cue négatif que dans 'ne … plus'. Sinon (comparatif/quantité), on ignore.
+  options:
+    regex: true
+    case_insensitive: true
+    global: true
+    require_ne_in_clause: true
+    clause_max_tokens: 40
+    exclude_verbs_from_cue: true
+  examples:
+    - "Il ne marche plus."        # → cues: 'ne', 'plus'
+    - "Il mange plus de légumes." # → (skip)
+
+# B) Coexistence 'sans' + déterminant à proximité → forcer les deux cues
+- id: QC_SANS_DET_BOTH_CUES
+  when_pattern: ".*"
+  action: "ENFORCE_COEXISTING_CUES"
+  options:
+    cue_a_group: "preposition"
+    cue_a_labels: ["sans"]
+    cue_b_group: "determinant"
+    cue_b_labels: ["aucun", "aucune", "pas de", "pas d'"]
+    window_tokens: 10
+    exclude_verbs_from_cue: true
+  notes: >
+    Si 'sans' et un déterminant négatif ("aucun"/"aucune"/"pas de") 
+    coexistent dans une fenêtre de 10 tokens, forcer les deux cues.
+  examples:
+    - "Traitement sans aucun effet secondaire." # → cues: 'sans', 'aucun'
+
+# C) Rappel global : "ne … que" n'est PAS négatif (restriction)
+- id: QC_NE_QUE_NOT_NEGATIVE
+  when_pattern: "\\b(n['']?|ne)\\s+.*?\\bque\\b"
+  action: "SKIP"
+  options:
+    regex: true
+    case_insensitive: true
+    max_token_gap: 8
+    exclude_verbs_from_cue: true
+  notes: >
+    "ne … que" exprime une restriction (≈ seulement), ce n'est PAS une négation.
+  examples:
+    - "Il ne prend que 5 mg." # → SKIP (pas négatif)
+    - "On ne retient que deux hypothèses." # → SKIP (pas négatif)
