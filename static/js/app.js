@@ -15,15 +15,28 @@ class AutoAnnotatorApp {
     if (this.isInitialized) return;
 
     try {
-      // Charger les données
-      await window.annotations.loadAnnotations();
+      // Charger la liste des fichiers disponibles
+      const files = await window.annotations.loadAvailableFiles();
+      window.ui.updateFileList(files);
+      
+      // Charger les données du fichier actuel
+      const annotations = await window.annotations.loadAnnotations();
+      
+      // Vérifier que les annotations sont bien chargées
+      if (annotations && annotations.length > 0) {
+        // Mettre à jour la liste des documents dans la sidebar
+        window.ui.renderDocumentList(annotations, 0);
+        
+        // Afficher le premier document
+        this.showDocument(0);
+      } else {
+        console.warn('Aucune annotation chargée');
+        window.ui.showFeedback('Aucune annotation trouvée', 'warning');
+      }
       
       // Mettre à jour les statistiques
       const stats = await window.annotations.loadStats();
       window.ui.updateStats(stats);
-      
-      // Afficher le premier document
-      this.showDocument(0);
       
       // Attacher les événements
       this.attachEventListeners();
@@ -38,15 +51,60 @@ class AutoAnnotatorApp {
   }
 
   /**
+   * Changer vers un autre fichier de données
+   */
+  async switchToFile(filename) {
+    try {
+      console.log('switchToFile appelée avec:', filename); // Debug
+      window.ui.showFeedback('Changement de fichier...', 'info');
+      
+      const success = await window.annotations.switchToFile(filename);
+      console.log('switchToFile result:', success); // Debug
+      
+      if (success) {
+        // Recharger les statistiques
+        const stats = await window.annotations.loadStats();
+        window.ui.updateStats(stats);
+        
+        // Mettre à jour la liste des documents dans la sidebar
+        window.ui.renderDocumentList(window.annotations.annotations, 0);
+        
+        // Afficher le premier document du nouveau fichier
+        this.showDocument(0);
+        
+        // Mettre à jour la liste des fichiers
+        const files = await window.annotations.loadAvailableFiles();
+        window.ui.updateFileList(files, filename);
+        
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Erreur lors du changement de fichier:', error);
+      window.ui.showFeedback('Erreur lors du changement de fichier', 'error');
+      return false;
+    }
+  }
+
+  /**
    * Afficher un document par son index
    */
   showDocument(index) {
+    console.log('showDocument appelé avec index:', index);
+    console.log('Annotations disponibles:', window.annotations.annotations.length);
+    
     if (!window.annotations.navigateToDocument(index)) {
+      console.warn('Impossible de naviguer vers le document', index);
       return false;
     }
 
     const annotation = window.annotations.getCurrentAnnotation();
-    if (!annotation) return false;
+    console.log('Annotation récupérée:', annotation);
+    
+    if (!annotation) {
+      console.warn('Aucune annotation trouvée pour l\'index', index);
+      return false;
+    }
 
     // Mettre à jour l'interface
     this.updateDocumentDisplay(annotation);
@@ -59,6 +117,12 @@ class AutoAnnotatorApp {
    * Mettre à jour l'affichage du document
    */
   updateDocumentDisplay(annotation) {
+    // Vérifier que l'annotation est valide
+    if (!annotation) {
+      console.warn('updateDocumentDisplay: annotation invalide', annotation);
+      return;
+    }
+
     // Mettre à jour le compteur
     window.ui.updateDocCounter(
       window.annotations.currentIndex,
@@ -74,17 +138,31 @@ class AutoAnnotatorApp {
     // Afficher le texte avec mise en évidence
     const textViewer = document.getElementById('text-viewer');
     if (textViewer) {
-      textViewer.innerHTML = window.ui.highlightText(
-        annotation.text,
-        annotation.cues || [],
-        annotation.scopes || []
-      );
+      const text = annotation.text || '';
+      const cues = annotation.cues || [];
+      const scopes = annotation.scopes || [];
+      
+      console.log('DEBUG updateDocumentDisplay:');
+      console.log('- annotation:', annotation);
+      console.log('- text existe:', !!annotation.text);
+      console.log('- text length:', annotation.text ? annotation.text.length : 0);
+      console.log('- text content:', annotation.text ? annotation.text.substring(0, 100) : 'UNDEFINED');
+      console.log('- cues count:', cues.length);
+      console.log('- scopes count:', scopes.length);
+      
+      if (text) {
+        console.log('Affichage du texte avec highlightText');
+        textViewer.innerHTML = window.ui.highlightText(text, cues, scopes);
+      } else {
+        console.log('PROBLÈME: Texte vide, affichage du message d\'erreur');
+        textViewer.innerHTML = '<p class="text-muted">Aucun texte disponible</p>';
+      }
       window.ui.animateElement(textViewer, 'animate-fade-in');
     }
 
     // Mettre à jour les listes d'annotations
     window.ui.renderCuesList(annotation.cues || []);
-    window.ui.renderScopesList(annotation.scopes || [], annotation.text);
+    window.ui.renderScopesList(annotation.scopes || [], annotation.text || '');
 
     // Nettoyer les champs de saisie
     this.clearScopeInputs();
@@ -150,6 +228,40 @@ class AutoAnnotatorApp {
   }
 
   /**
+   * Recalculer les positions d'une portée
+   */
+  recalculateScope(index) {
+    const annotation = window.annotations.getCurrentAnnotation();
+    if (!annotation || !annotation.scopes || index >= annotation.scopes.length) {
+      window.ui.showFeedback('Portée non trouvée', 'error');
+      return false;
+    }
+
+    const scope = annotation.scopes[index];
+    if (!scope.scope) {
+      window.ui.showFeedback('Impossible de recalculer: texte de portée manquant', 'error');
+      return false;
+    }
+
+    // Supprimer les positions existantes pour forcer le recalcul
+    delete scope.positions;
+    delete scope.calculated;
+
+    // Recalculer les positions
+    const recalculatedScopes = window.annotations.calculateScopePositions(annotation.text, [scope]);
+    if (recalculatedScopes.length > 0 && recalculatedScopes[0].positions) {
+      annotation.scopes[index] = recalculatedScopes[0];
+      window.annotations.markAsEdited(annotation);
+      this.refreshCurrentDocument();
+      window.ui.showFeedback('Portée recalculée avec succès', 'success');
+      return true;
+    } else {
+      window.ui.showFeedback('Impossible de recalculer la portée', 'error');
+      return false;
+    }
+  }
+
+  /**
    * Supprimer un marqueur
    */
   deleteCue(index) {
@@ -167,6 +279,11 @@ class AutoAnnotatorApp {
     const annotation = window.annotations.getCurrentAnnotation();
     if (annotation) {
       this.updateDocumentDisplay(annotation);
+      // Mettre à jour la liste des documents dans la sidebar
+      window.ui.renderDocumentList(
+        window.annotations.annotations, 
+        window.annotations.currentIndex
+      );
     }
   }
 
@@ -211,6 +328,39 @@ class AutoAnnotatorApp {
    * Attacher les événements
    */
   attachEventListeners() {
+    // Sélection de fichier - Version avec délai pour être sûr que le DOM est prêt
+    setTimeout(() => {
+      const loadFileBtn = document.getElementById('load-file');
+      const fileList = document.getElementById('file-list');
+      console.log('LoadFileBtn trouvé:', loadFileBtn); // Debug
+      console.log('FileList trouvé:', fileList); // Debug
+      
+      if (loadFileBtn) {
+        // Supprimer les anciens événements s'il y en a
+        loadFileBtn.replaceWith(loadFileBtn.cloneNode(true));
+        const newLoadFileBtn = document.getElementById('load-file');
+        
+        newLoadFileBtn.addEventListener('click', async (event) => {
+          event.preventDefault();
+          console.log('Bouton charger cliqué!'); // Debug
+          
+          const currentFileList = document.getElementById('file-list');
+          console.log('FileList au clic:', currentFileList, 'Value:', currentFileList?.value); // Debug
+          
+          if (currentFileList && currentFileList.value) {
+            console.log('Tentative de changement vers:', currentFileList.value); // Debug
+            await this.switchToFile(currentFileList.value);
+          } else {
+            console.log('Aucun fichier sélectionné'); // Debug
+          }
+        });
+        
+        console.log('Événement attaché au bouton'); // Debug
+      } else {
+        console.log('Bouton load-file non trouvé!'); // Debug
+      }
+    }, 100); // Délai de 100ms pour être sûr que le DOM est prêt
+
     // Navigation
     const prevBtn = document.getElementById('prev-doc');
     const nextBtn = document.getElementById('next-doc');

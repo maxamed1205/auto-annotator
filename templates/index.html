@@ -30,7 +30,22 @@
       <aside class="sidebar animate-slide-in">
         <div class="sidebar-section">
           <h2 class="sidebar-title">
-            📄 Documents
+            � Fichiers de données
+          </h2>
+          <div id="file-selector" class="file-selector">
+            <select id="file-list" class="form-select" onchange="window.app && window.app.switchToFile(this.value)">
+              <option value="">Chargement...</option>
+            </select>
+            <button id="load-file" class="btn btn-primary btn-sm" onclick="window.app && window.app.switchToFile(document.getElementById('file-list').value)">
+              📂 Charger
+            </button>
+          </div>
+          <div id="current-file-info" class="file-info"></div>
+        </div>
+
+        <div class="sidebar-section">
+          <h2 class="sidebar-title">
+            �📄 Documents
           </h2>
           <ul id="doc-list" class="doc-list"></ul>
         </div>

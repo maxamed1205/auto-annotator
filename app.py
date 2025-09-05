@@ -4,6 +4,7 @@ Interface moderne pour annotation de négations et portées
 """
 from flask import Flask, jsonify, request, render_template, send_from_directory
 import os
+import glob
 
 # Import des modules métier
 from api.annotations import AnnotationManager
@@ -11,14 +12,16 @@ from api.storage import StorageManager
 
 # Configuration
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DATA_FILE = os.path.join(BASE_DIR, 'data', 'annotations.jsonl')
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+DEFAULT_DATA_FILE = os.path.join(DATA_DIR, 'annotations_scope_added.jsonl')
 VALIDATED_DIR = os.path.join(BASE_DIR, 'data', 'validated')
 
 # Initialisation Flask
 app = Flask(__name__, static_folder='static', static_url_path='/static', template_folder='templates')
 
 # Initialisation des managers
-annotation_manager = AnnotationManager(DATA_FILE)
+current_data_file = DEFAULT_DATA_FILE
+annotation_manager = AnnotationManager(current_data_file)
 storage_manager = StorageManager(VALIDATED_DIR)
 
 
@@ -26,6 +29,76 @@ storage_manager = StorageManager(VALIDATED_DIR)
 def index():
     """Page principale de l'interface"""
     return render_template('index.html')
+
+
+@app.route('/api/files')
+def api_files():
+    """API: Lister tous les fichiers JSONL disponibles"""
+    try:
+        # Chercher tous les fichiers .jsonl dans le dossier data
+        pattern = os.path.join(DATA_DIR, '*.jsonl')
+        jsonl_files = glob.glob(pattern)
+        
+        files_info = []
+        for file_path in jsonl_files:
+            filename = os.path.basename(file_path)
+            # Obtenir la taille du fichier et le nombre de lignes
+            try:
+                line_count = 0
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    for _ in f:
+                        line_count += 1
+                
+                file_size = os.path.getsize(file_path)
+                
+                files_info.append({
+                    'filename': filename,
+                    'path': file_path,
+                    'size': file_size,
+                    'line_count': line_count,
+                    'is_current': file_path == annotation_manager.data_file
+                })
+            except Exception as e:
+                print(f"Erreur lors de la lecture de {file_path}: {e}")
+                continue
+        
+        # Trier par nom de fichier
+        files_info.sort(key=lambda x: x['filename'])
+        
+        return jsonify(files_info)
+    except Exception as e:
+        print(f"Erreur lors de la liste des fichiers: {e}")
+        return jsonify([])
+
+
+@app.route('/api/switch-file', methods=['POST'])
+def api_switch_file():
+    """API: Changer le fichier de données actuel"""
+    global annotation_manager
+    
+    data = request.get_json()
+    if not data or 'filename' not in data:
+        return jsonify({'status': 'error', 'message': 'Nom de fichier requis'}), 400
+    
+    filename = data['filename']
+    new_file_path = os.path.join(DATA_DIR, filename)
+    
+    # Vérifier que le fichier existe
+    if not os.path.exists(new_file_path):
+        return jsonify({'status': 'error', 'message': 'Fichier non trouvé'}), 404
+    
+    # Créer un nouveau manager avec le nouveau fichier
+    annotation_manager = AnnotationManager(new_file_path)
+    
+    # Charger les annotations du nouveau fichier
+    annotations = annotation_manager.load_annotations()
+    
+    return jsonify({
+        'status': 'success',
+        'message': f'Fichier changé vers {filename}',
+        'current_file': filename,
+        'annotation_count': len(annotations)
+    })
 
 
 @app.route('/api/annotations')

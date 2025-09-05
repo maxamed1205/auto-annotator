@@ -76,6 +76,59 @@ class UIManager {
   }
 
   /**
+   * Mettre à jour la liste des fichiers disponibles
+   */
+  updateFileList(files, currentFile = null) {
+    const fileList = document.getElementById('file-list');
+    if (!fileList) return;
+
+    // Vider la liste
+    fileList.innerHTML = '';
+
+    if (files.length === 0) {
+      fileList.innerHTML = '<option value="">Aucun fichier trouvé</option>';
+      return;
+    }
+
+    // Ajouter les options
+    files.forEach(file => {
+      const option = document.createElement('option');
+      option.value = file.filename;
+      option.textContent = `${file.filename} (${file.line_count} docs)`;
+      
+      if (file.is_current || file.filename === currentFile) {
+        option.selected = true;
+      }
+      
+      fileList.appendChild(option);
+    });
+
+    // Mettre à jour les informations du fichier actuel
+    this.updateCurrentFileInfo(files, currentFile);
+  }
+
+  /**
+   * Mettre à jour les informations du fichier actuel
+   */
+  updateCurrentFileInfo(files, currentFile = null) {
+    const infoDiv = document.getElementById('current-file-info');
+    if (!infoDiv) return;
+
+    const current = files.find(f => f.is_current || f.filename === currentFile);
+    if (!current) {
+      infoDiv.innerHTML = '';
+      return;
+    }
+
+    const sizeKB = (current.size / 1024).toFixed(1);
+    infoDiv.innerHTML = `
+      <strong>Fichier actuel:</strong> ${current.filename}<br>
+      <strong>Documents:</strong> ${current.line_count}<br>
+      <strong>Taille:</strong> ${sizeKB} KB
+    `;
+  }
+
+  /**
    * Fusionner les positions contiguës pour éviter chevauchement
    */
   mergeContiguousPositions(positions) {
@@ -102,12 +155,23 @@ class UIManager {
 
     list.innerHTML = '';
     
+    if (!documents || !Array.isArray(documents)) {
+      console.warn('renderDocumentList: documents is not an array', documents);
+      return;
+    }
+    
     documents.forEach((doc, index) => {
       const item = document.createElement('li');
       item.className = `doc-item stagger-child ${index === currentIndex ? 'active' : ''}`;
+      
+      // Vérifier que doc et doc.text existent
+      const docId = doc?.id || 'N/A';
+      const docText = doc?.text || 'Texte non disponible';
+      const preview = docText.length > 100 ? docText.substring(0, 100) + '...' : docText;
+      
       item.innerHTML = `
-        <div class="doc-id">#${doc.id}</div>
-        <div class="doc-preview">${doc.text.substring(0, 100)}...</div>
+        <div class="doc-id">#${docId}</div>
+        <div class="doc-preview">${this.escapeHtml(preview)}</div>
       `;
       item.addEventListener('click', () => window.app?.showDocument(index));
       list.appendChild(item);
@@ -118,37 +182,57 @@ class UIManager {
    * Mettre en évidence le texte avec marqueurs et portées
    */
   highlightText(text, cues = [], scopes = []) {
+    // Vérifier que le texte existe
+    if (!text || typeof text !== 'string') {
+      console.warn('highlightText: texte invalide', text);
+      return text || '';
+    }
+
     // Créer une liste de toutes les positions avec leurs métadonnées
     const positions = [];
 
     // Ajouter les marqueurs
-    cues.forEach((cue, cueIndex) => {
-      if (cue.positions && cue.positions.length > 0) {
-        cue.positions.forEach((pos, posIndex) => {
-          positions.push({ 
-            start: pos[0], 
-            end: pos[1], 
-            type: 'cue', 
-            data: cue, 
-            index: cueIndex,
-            posIndex: posIndex,
-            id: `cue-${cueIndex}-${posIndex}`
+    if (Array.isArray(cues)) {
+      cues.forEach((cue, cueIndex) => {
+        if (cue && cue.positions && Array.isArray(cue.positions) && cue.positions.length > 0) {
+          cue.positions.forEach((pos, posIndex) => {
+            if (Array.isArray(pos) && pos.length >= 2) {
+              positions.push({ 
+                start: pos[0], 
+                end: pos[1], 
+                type: 'cue', 
+                data: cue, 
+                index: cueIndex,
+                posIndex: posIndex,
+                id: `cue-${cueIndex}-${posIndex}`
+              });
+            }
           });
-        });
-      }
-    });
+        }
+      });
+    }
 
     // Ajouter les portées
-    scopes.forEach((scope, index) => {
-      positions.push({ 
-        start: scope.start, 
-        end: scope.end, 
-        type: 'scope', 
-        data: scope, 
-        index: index,
-        id: `scope-${index}`
+    if (Array.isArray(scopes)) {
+      scopes.forEach((scope, index) => {
+        if (scope && scope.positions && Array.isArray(scope.positions)) {
+          // 🔄 NOUVEAU: Gérer les positions multiples [[start1, end1], [start2, end2], ...]
+          scope.positions.forEach((position, posIndex) => {
+            if (Array.isArray(position) && position.length === 2) {
+              positions.push({ 
+                start: position[0], 
+                end: position[1], 
+                type: 'scope', 
+                data: scope, 
+                index: index,
+                posIndex: posIndex,
+                id: `scope-${index}-${posIndex}`
+              });
+            }
+          });
+        }
       });
-    });
+    }
 
     // Trier par position de début, puis par longueur (plus long en premier pour éviter les imbrications)
     positions.sort((a, b) => {
@@ -256,16 +340,64 @@ class UIManager {
     scopes.forEach((scope, index) => {
       const item = document.createElement('li');
       item.className = 'annotation-item';
-      const scopeText = text.slice(scope.start, scope.end);
-      item.innerHTML = `
-        <div class="annotation-content">
-          <div class="annotation-label">${scopeText.substring(0, 50)}${scopeText.length > 50 ? '...' : ''}</div>
-          <div class="annotation-meta">[${scope.start}-${scope.end}] • ${scope.end - scope.start} chars</div>
-        </div>
-        <div class="annotation-actions">
-          <button class="btn btn-sm btn-ghost" onclick="window.app?.deleteScope(${index})">🗑️</button>
-        </div>
-      `;
+      
+      let content = '';
+      let isCalculated = scope.calculated || false;
+      
+      if (scope.positions && Array.isArray(scope.positions) && scope.positions.length > 0) {
+        // 🔄 NOUVEAU: Gérer les positions multiples
+        const isValidPositions = scope.positions.every(pos => Array.isArray(pos) && pos.length === 2);
+        
+        if (isValidPositions) {
+          // Construire le texte à partir de toutes les positions
+          const textParts = scope.positions.map(pos => text.slice(pos[0], pos[1]));
+          const scopeText = textParts.join(', ');
+          const calculatedIcon = isCalculated ? ' 🔧' : '';
+          const calculatedClass = isCalculated ? ' calculated-scope' : '';
+          
+          // Calculer les informations de position
+          const positionInfos = scope.positions.map(pos => `[${pos[0]}-${pos[1]}]`).join(', ');
+          const totalChars = scope.positions.reduce((sum, pos) => sum + (pos[1] - pos[0]), 0);
+          
+          content = `
+            <div class="annotation-content${calculatedClass}">
+              <div class="annotation-label">${this.escapeHtml(scopeText.substring(0, 50))}${scopeText.length > 50 ? '...' : ''}${calculatedIcon}</div>
+              <div class="annotation-meta">${positionInfos} • ${totalChars} chars total • ID: ${scope.id || 'N/A'}</div>
+              ${scope.scope ? `<div class="annotation-scope-original">Portée originale: "${this.escapeHtml(scope.scope)}"</div>` : ''}
+            </div>
+            <div class="annotation-actions">
+              ${isCalculated ? `<button class="btn btn-sm btn-warning" onclick="window.app?.recalculateScope(${index})" title="Recalculer">🔄</button>` : ''}
+              <button class="btn btn-sm btn-ghost" onclick="window.app?.deleteScope(${index})" title="Supprimer">🗑️</button>
+            </div>
+          `;
+        } else {
+          // Positions malformées
+          content = `
+            <div class="annotation-content error-scope">
+              <div class="annotation-label">⚠️ "${this.escapeHtml(scope.scope || 'Portée inconnue')}"</div>
+              <div class="annotation-meta">Positions malformées • ID: ${scope.id || 'N/A'}</div>
+            </div>
+            <div class="annotation-actions">
+              <button class="btn btn-sm btn-warning" onclick="window.app?.recalculateScope(${index})" title="Recalculer">🔄</button>
+              <button class="btn btn-sm btn-ghost" onclick="window.app?.deleteScope(${index})" title="Supprimer">🗑️</button>
+            </div>
+          `;
+        }
+      } else {
+        // Portée sans positions calculées
+        content = `
+          <div class="annotation-content error-scope">
+            <div class="annotation-label">❌ "${this.escapeHtml(scope.scope || 'Portée inconnue')}"</div>
+            <div class="annotation-meta">Positions non calculées • ID: ${scope.id || 'N/A'}</div>
+          </div>
+          <div class="annotation-actions">
+            <button class="btn btn-sm btn-warning" onclick="window.app?.recalculateScope(${index})" title="Recalculer">🔄</button>
+            <button class="btn btn-sm btn-ghost" onclick="window.app?.deleteScope(${index})" title="Supprimer">🗑️</button>
+          </div>
+        `;
+      }
+      
+      item.innerHTML = content;
       list.appendChild(item);
     });
   }

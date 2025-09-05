@@ -1,5 +1,47 @@
 /* Auto Annotator v1.1 - Composants UI */
 
+/* Sélecteur de fichiers */
+.file-selector {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space);
+}
+
+.form-select {
+  flex: 1;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.form-select:hover {
+  border-color: var(--border-hover);
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-alpha);
+}
+
+.file-info {
+  padding: var(--space-sm);
+  background: var(--surface-secondary);
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  border-left: 3px solid var(--accent);
+}
+
+.file-info strong {
+  color: var(--text-primary);
+}
+
 /* Boutons */
 .btn {
   display: inline-flex;
@@ -396,4 +438,49 @@
   background: var(--error-light);
   border-color: var(--error);
   color: var(--error);
+}
+
+/* Styles pour les portées calculées automatiquement */
+.calculated-scope {
+  border-left: 3px solid var(--warning);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.calculated-scope .annotation-label {
+  color: var(--text-primary);
+}
+
+.calculated-scope .annotation-meta {
+  color: var(--warning);
+  font-weight: 500;
+}
+
+.error-scope {
+  border-left: 3px solid var(--error);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.error-scope .annotation-label {
+  color: var(--error);
+}
+
+.error-scope .annotation-meta {
+  color: var(--error);
+  font-weight: 500;
+}
+
+.annotation-scope-original {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: var(--space-xs);
+  font-style: italic;
+}
+
+/* Indicateur pour les portées automatiques */
+.calculated-scope::after {
+  content: " (Auto)";
+  font-size: 0.7rem;
+  color: var(--warning);
+  font-weight: 600;
+  opacity: 0.8;
 }
