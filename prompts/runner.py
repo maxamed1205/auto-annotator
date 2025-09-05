@@ -1,0 +1,46 @@
+"""Minimal CLI wrapper delegating to prompts.detector.annotate_sentence.
+
+Kept intentionally small for testability.
+"""
+
+from __future__ import annotations
+import argparse
+import json
+import logging
+from pathlib import Path
+
+from .detector import load_markers, annotate_sentence
+
+
+def make_logger(level: str = "INFO") -> logging.Logger:
+    logging.basicConfig(level=getattr(logging, level.upper(), logging.INFO))
+    return logging.getLogger("prompts.runner")
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Runner permissif v3 (no-NLP, pipeline renforcé)")
+    ap.add_argument("--rules", required=True, help="Chemin dossier rules/")
+    ap.add_argument("--input", required=True, help="Fichier texte (1 phrase/ligne)")
+    ap.add_argument("--output", required=True, help="Sortie JSONL")
+    ap.add_argument("--log", default="INFO")
+    args = ap.parse_args()
+
+    log = make_logger(args.log)
+
+    rules_dir = Path(args.rules)
+    markers_by_group = load_markers(rules_dir)
+
+    sid = 0
+    with open(args.input, "r", encoding="utf-8") as fin, open(args.output, "w", encoding="utf-8") as fout:
+        for line in fin:
+            text = line.strip()
+            if not text:
+                continue
+            sid += 1
+            seen_intervals = []  # ← réinitialisation ici
+            obj = annotate_sentence(text, sid, markers_by_group, seen_intervals)
+            minimal = {"id": obj.get("id"), "text": obj.get("text"), "cues": obj.get("cues", [])}
+            fout.write(json.dumps(minimal, ensure_ascii=False) + "\n")
+    log.info("Terminé: %d phrases → %s", sid, args.output)
+
+if __name__ == "__main__":
+    main()

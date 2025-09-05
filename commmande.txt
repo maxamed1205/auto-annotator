@@ -1,0 +1,1 @@
+python -m prompts.runner --rules rules --input data\corpus_raw\example.txt --output data\annotations.jsonl
